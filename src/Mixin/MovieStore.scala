@@ -1,17 +1,15 @@
 package Mixin
 
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Calendar.DAY_OF_MONTH
-import java.util.Date
+import java.time.LocalDate
 
 
 object Main{
   def main(args: Array[String]): Unit = {
-    val movieStore = new LowPriceFamilyMovieStore
+    val movieStore =  new LowPriceFamilyMovieStore
     val movieRental = new LowPriceFamilyLongPeriodMovieRental
-    val client = Client("John", "Smith", "john2000", "123", new SimpleDateFormat("dd/MM/yyyy").parse("01/04/2019"), 20, new SimpleDateFormat("dd/MM/yyyy").parse("09/02/2000"))
-    val movie = Movie("Up", new SimpleDateFormat("dd/MM/yyyy").parse("01/01/2009"), 1200, PG(), 10.1)
+    val client = Client("John", "Smith", "john2000", "123", 2019, 20, "2000-02-09")
+    val movie = Movie("Up", 2009, 1200, PG(), 10.1)
+
     //Console.println(movieStore.estimate(client, movie))
     Console.println(movieRental.estimateRentalPeriod(client,movie))
   }
@@ -29,8 +27,8 @@ case class NC_17() extends MPAARating
 
 
 
-case class Client(name:String, surname:String, userName:String, password:String, registrationDate:Date, totalNoOfOrders:Int, dateOfBirth:Date)
-case class Movie(name:String, releaseDate:Date, totalNoOfPurchases:Int, ageRating:MPAARating, basePrice:Double)
+case class Client(name:String, surname:String, userName:String, password:String, registrationYear:Int, totalNoOfOrders:Int, dateOfBirth:String)
+case class Movie(name:String, releaseYear:Int, totalNoOfPurchases:Int, ageRating:MPAARating, basePrice:Double)
 
 
 
@@ -48,7 +46,7 @@ trait MovieAvailability{
 }
 
 trait MovieRentalPeriod{
-  def determineBaseRentalPeriod(movie:Movie):Calendar
+  def determineBaseRentalPeriod(movie:Movie):LocalDate
   def determineBonusOfRentalPeriod(client:Client, movie:Movie):Int
   def determineReductionOfRentalPeriod(movie:Movie):Int
 }
@@ -66,11 +64,8 @@ trait FamilyFriendlyMovieAvailability extends MovieAvailability{
   }
   override def isLegal(movie:Movie):Boolean = true
   override def isAlreadyInTheMarket(movie:Movie):Boolean = {
-    val today = Calendar.getInstance()
-    val yearFormat = new SimpleDateFormat("yyyy")
-    val currentYear = today.get(Calendar.YEAR)
-    val releaseYear = Integer.parseInt(yearFormat.format(movie.releaseDate))
-    if((currentYear - releaseYear) > 1){
+    val currentYear = LocalDate.now.getYear
+    if((currentYear - movie.releaseYear) > 1){
       true
     }else{
       false
@@ -78,40 +73,20 @@ trait FamilyFriendlyMovieAvailability extends MovieAvailability{
   }
 }
 
-trait AdultsMovieAvailability extends MovieAvailability{
-  override def isAppropriateAge(client:Client, movie:Movie):Boolean = {
-    val today = Calendar.getInstance()
-    val yearFormat = new SimpleDateFormat("yyyy")
-    val monthFormat = new SimpleDateFormat("MM")
-    val dayFormat = new SimpleDateFormat("dd")
-    val currentYear = today.get(Calendar.YEAR)
-    val currentMonth = today.get(Calendar.MONTH)
-    val currentDay = today.get(DAY_OF_MONTH)
-    val birthYear = Integer.parseInt(yearFormat.format(client.dateOfBirth))
-    val birthMonth = Integer.parseInt(monthFormat.format(client.dateOfBirth))
-    val birthDay = Integer.parseInt(dayFormat.format(client.dateOfBirth))
+trait AdultsMovieAvailability extends MovieAvailability {
+  override def isAppropriateAge(client: Client, movie: Movie): Boolean = {
+    val dtf = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
+    val birthDate = java.time.LocalDate.parse(client.dateOfBirth, dtf)
 
-    var age = currentYear-birthYear
-    if(currentMonth<birthMonth || currentMonth==birthMonth && currentDay<birthDay){
-      (age-1)>18
-    }else{
-      age>18
+    var age = LocalDate.now.getYear - birthDate.getYear
+    if (LocalDate.now.getMonth.getValue < birthDate.getMonth.getValue || (LocalDate.now.getMonth.getValue == birthDate.getMonth.getValue && LocalDate.now.getDayOfMonth < birthDate.getDayOfMonth)) {
+      age = age - 1
     }
+    age > 18
   }
-  override def isLegal(movie:Movie):Boolean = true
-  override def isAlreadyInTheMarket(movie:Movie):Boolean = {
-      val today = Calendar.getInstance()
-      val yearFormat = new SimpleDateFormat("yyyy")
-      val currentYear = today.get(Calendar.YEAR)
-      val releaseYear = Integer.parseInt(yearFormat.format(movie.releaseDate))
-      if(currentYear >= releaseYear){
-        true
-      }else{
-        false
-      }
-  }
+  override def isLegal(movie: Movie): Boolean = true
+  override def isAlreadyInTheMarket(movie: Movie): Boolean = LocalDate.now.getYear >= movie.releaseYear
 }
-
 trait LuxuryMovieStorePricing extends MoviePricing {
   override def determinePrice(movie:Movie):Double = if(movie.totalNoOfPurchases>1500){
     movie.basePrice + 12.5
@@ -128,17 +103,13 @@ trait LuxuryMovieStorePricing extends MoviePricing {
 
 trait LowPriceMovieStorePricing extends MoviePricing {
   override def determinePrice(movie:Movie):Double = {
-    val today = Calendar.getInstance()
-    val yearFormat = new SimpleDateFormat("yyyy")
-    val currentYear = today.get(Calendar.YEAR)
-    val releaseYear = Integer.parseInt(yearFormat.format(movie.releaseDate))
-
-    if(currentYear - releaseYear < 2  ){
+    if(LocalDate.now.getYear - movie.releaseYear < 2  ){
       movie.basePrice + 4.5
     }else{
       movie.basePrice
     }
   }
+
   override def getDiscount(client:Client, movie:Movie):Double = if(client.totalNoOfOrders>30){
     0.20
   }else if(movie.totalNoOfPurchases < 1000) {
@@ -150,7 +121,7 @@ trait LowPriceMovieStorePricing extends MoviePricing {
 }
 
 trait LimitedEditionMovieRentalPeriod extends MovieRentalPeriod{
-  override def determineBaseRentalPeriod(movie:Movie):Calendar=Calendar.getInstance()
+  override def determineBaseRentalPeriod(movie:Movie):LocalDate = LocalDate.now.plusDays(7)
 
   override def determineBonusOfRentalPeriod(client:Client, movie:Movie):Int={
     if(client.totalNoOfOrders>30){
@@ -168,14 +139,8 @@ trait LimitedEditionMovieRentalPeriod extends MovieRentalPeriod{
   }
 }
 
-trait LongPeriodEditionMovieRentalPeriod extends MovieRentalPeriod{
- /* override def determineBaseRentalPeriod(movie:Movie):Date={
-    val returnDate = Calendar.getInstance
-    returnDate.add(Calendar.MONTH, 1)
-    val dateFormat = new SimpleDateFormat("dd/MM/yyyy")
-    dateFormat.parse(returnDate.toString)
-  }*/
-  override def determineBaseRentalPeriod(movie:Movie):Calendar=Calendar.getInstance()
+trait LongPeriodMovieRentalPeriod extends MovieRentalPeriod{
+  override def determineBaseRentalPeriod(movie:Movie):LocalDate = LocalDate.now.plusDays(21)
 
   override def determineBonusOfRentalPeriod(client:Client, movie:Movie):Int={
     if(client.totalNoOfOrders>20){
@@ -203,7 +168,6 @@ abstract class MovieStore extends MoviePricing with MovieAvailability{
 }
 
 abstract class MovieRental extends MoviePricing with MovieRentalPeriod with MovieAvailability{
-
   def estimatePrice(client:Client, movie:Movie):Double = {
     if(isAppropriateAge(client, movie) && isLegal(movie) && isAlreadyInTheMarket(movie)){
       (determinePrice(movie) + countFees(movie)) * (1 - getDiscount(client, movie))
@@ -211,12 +175,13 @@ abstract class MovieRental extends MoviePricing with MovieRentalPeriod with Movi
       -1
     }
   }
-  def estimateRentalPeriod(client:Client, movie:Movie):Date={
-    val rentalPeriod = Calendar.getInstance
-    rentalPeriod.add(DAY_OF_MONTH, determineBonusOfRentalPeriod(client, movie))
-    rentalPeriod.add(DAY_OF_MONTH, (-1)*determineReductionOfRentalPeriod(movie))
-    val dateFormat = new SimpleDateFormat("dd/MM/yyyy")
-    dateFormat.parse(rentalPeriod.toString)
+  def estimateRentalPeriod(client:Client, movie:Movie):LocalDate= {
+    val rentalPeriod = determineBaseRentalPeriod(movie).plusDays(determineBonusOfRentalPeriod(client, movie)).minusDays(determineReductionOfRentalPeriod(movie))
+    if (rentalPeriod.isAfter(LocalDate.now)) {
+       rentalPeriod
+    }else{
+      LocalDate.MIN
+    }
   }
 }
 
@@ -225,4 +190,4 @@ abstract class MovieRental extends MoviePricing with MovieRentalPeriod with Movi
 class LuxuryAdultsMovieStore extends MovieStore with LuxuryMovieStorePricing with AdultsMovieAvailability{}
 class LowPriceFamilyMovieStore extends MovieStore with LowPriceMovieStorePricing with FamilyFriendlyMovieAvailability{}
 class LuxuryAdultsLimitedEditionMovieRental extends MovieRental with LuxuryMovieStorePricing with LimitedEditionMovieRentalPeriod with AdultsMovieAvailability{}
-class LowPriceFamilyLongPeriodMovieRental extends MovieRental with LowPriceMovieStorePricing with LongPeriodEditionMovieRentalPeriod with FamilyFriendlyMovieAvailability{}
+class LowPriceFamilyLongPeriodMovieRental extends MovieRental with LowPriceMovieStorePricing with LongPeriodMovieRentalPeriod with FamilyFriendlyMovieAvailability{}
