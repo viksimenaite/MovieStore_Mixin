@@ -6,7 +6,7 @@ object Main{
   def main(args: Array[String]): Unit = {
     val movieStore =  new LuxuryAdultsMovieStore
     val movieRental = new LowPriceFamilyLongPeriodMovieRental
-    val client = Client("John", "Smith", "john2000", "123", 2019, 20, "2000-02-09")
+    val client = Client("John", "Smith", "john2000", "123", 20, "2000-02-09")
     val movie = Movie("Up", 2009, 1200, PG(), 10.1)
 
     val moviePrice = movieStore.estimate(client, movie)
@@ -39,7 +39,7 @@ case class R() extends MPAARating
 case class NC_17() extends MPAARating
 
 
-case class Client(name:String, surname:String, userName:String, password:String, registrationYear:Int, totalNoOfOrders:Int, dateOfBirth:String)
+case class Client(name:String, surname:String, userName:String, password:String, totalNoOfOrders:Int, dateOfBirth:String)
 case class Movie(name:String, releaseYear:Int, totalNoOfPurchases:Int, ageRating:MPAARating, basePrice:Double)
 
 
