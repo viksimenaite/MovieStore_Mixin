@@ -26,7 +26,6 @@ object Main{
     }else{
       Console.println("Sorry, movie \"" + movie.name + "\" is not suitable for you\r\n")
     }
-    
   }
 }
 
