@@ -2,22 +2,35 @@ package Mixin
 
 import java.time.LocalDate
 
-
 object Main{
   def main(args: Array[String]): Unit = {
-    val movieStore =  new LowPriceFamilyMovieStore
+    val movieStore =  new LuxuryAdultsMovieStore
     val movieRental = new LowPriceFamilyLongPeriodMovieRental
     val client = Client("John", "Smith", "john2000", "123", 2019, 20, "2000-02-09")
     val movie = Movie("Up", 2009, 1200, PG(), 10.1)
 
-    //Console.println(movieStore.estimate(client, movie))
-    Console.println(movieRental.estimateRentalPeriod(client,movie))
+    val moviePrice = movieStore.estimate(client, movie)
+    Console.println("Movie store:")
+    if(moviePrice > 0){
+      Console.println("The price of the movie \"" + movie.name + "\": " + moviePrice + " eur\r\n")
+    }else{
+      Console.println("Sorry, movie \"" + movie.name + "\" is not suitable for you\r\n")
+    }
+
+    val movieRentalPrice = movieRental.estimatePrice(client, movie)
+    val returnDate = movieRental.estimateRentalPeriod(client, movie)
+    Console.println("Movie rental:")
+    if(movieRentalPrice > 0 && returnDate != LocalDate.MIN){
+      Console.println("The price of the movie \"" + movie.name + "\": " + movieRentalPrice + " eur")
+      Console.println("Return by: " + returnDate)
+    }else{
+      Console.println("Sorry, movie \"" + movie.name + "\" is not suitable for you\r\n")
+    }
+    
   }
 }
 
-
-
-// enum
+// "enum"
 sealed trait MPAARating
 case class G() extends MPAARating
 case class PG() extends MPAARating
@@ -26,13 +39,12 @@ case class R() extends MPAARating
 case class NC_17() extends MPAARating
 
 
-
 case class Client(name:String, surname:String, userName:String, password:String, registrationYear:Int, totalNoOfOrders:Int, dateOfBirth:String)
 case class Movie(name:String, releaseYear:Int, totalNoOfPurchases:Int, ageRating:MPAARating, basePrice:Double)
 
 
+//Abstraction, variation
 
-//"Strategy", abstraction, variation
 trait MoviePricing{
   def determinePrice(movie:Movie):Double
   def getDiscount(client:Client, movie:Movie):Double
@@ -50,8 +62,6 @@ trait MovieRentalPeriod{
   def determineBonusOfRentalPeriod(client:Client, movie:Movie):Int
   def determineReductionOfRentalPeriod(movie:Movie):Int
 }
-
-
 
 
 //Concrete implementations
@@ -87,6 +97,7 @@ trait AdultsMovieAvailability extends MovieAvailability {
   override def isLegal(movie: Movie): Boolean = true
   override def isAlreadyInTheMarket(movie: Movie): Boolean = LocalDate.now.getYear >= movie.releaseYear
 }
+
 trait LuxuryMovieStorePricing extends MoviePricing {
   override def determinePrice(movie:Movie):Double = if(movie.totalNoOfPurchases>1500){
     movie.basePrice + 12.5
@@ -116,7 +127,7 @@ trait LowPriceMovieStorePricing extends MoviePricing {
     0.10
   }else{
     0
-}
+  }
   override def countFees(movie:Movie):Double = movie.basePrice * 0.21
 }
 
@@ -153,10 +164,8 @@ trait LongPeriodMovieRentalPeriod extends MovieRentalPeriod{
 }
 
 
+//Main entities, template
 
-
-
-//Main entity, template
 abstract class MovieStore extends MoviePricing with MovieAvailability{
   def estimate(client:Client, movie:Movie):Double = {
     if(isAppropriateAge(client, movie) && isLegal(movie) && isAlreadyInTheMarket(movie)){
@@ -184,8 +193,6 @@ abstract class MovieRental extends MoviePricing with MovieRentalPeriod with Movi
     }
   }
 }
-
-
 
 class LuxuryAdultsMovieStore extends MovieStore with LuxuryMovieStorePricing with AdultsMovieAvailability{}
 class LowPriceFamilyMovieStore extends MovieStore with LowPriceMovieStorePricing with FamilyFriendlyMovieAvailability{}
